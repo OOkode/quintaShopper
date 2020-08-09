@@ -58,7 +58,7 @@ def pay(client,credentials):
     driver.get('https://5tay42.enzona.net/pedido-rapido')
 
     try:
-        client.find_element_by_class_name('cgv').click()
+        client.find_element_by_css_selector('#cgv').click()
 
     except NoSuchElementException as e:
         print('No hay ningun producto en el carrito')
@@ -89,24 +89,21 @@ def pay(client,credentials):
         pin_modules[i].send_keys(credentials['pin'][i])
         i += 1
 
-    # client.find_element_by_class_name('btn-lg').click()
-
-
-
-
+    client.find_element_by_class_name('btn-lg').click()
 
 
 def add_to_cart(web_driver,product):
 
-
     try:
-        product.find_element_by_css_selector(".ajax_add_to_cart_button").click()
+        product_buy_button = product.find_element_by_css_selector("a[title='Comprar']").click()
 
-        while element_exists(web_driver,'ajax_cart_no_product'):
-            time.sleep(0.5)
+        wait = WebDriverWait(driver, 10, poll_frequency=1,
+                             ignored_exceptions=[NoSuchElementException, ElementNotSelectableException])
+
+        wait.until(lambda client: web_driver.find_element_by_css_selector('#layer_cart_product_quantity').text == '1')
 
     except Exception as e:
-        print('El producto no esta disponible')
+        print('El producto parece estar no disponible')
         raise e
 
 
@@ -125,18 +122,23 @@ def hunt_products(web_driver):
 
     while True:
 
-        if element_exists(web_driver,'product_list'):
+        if element_exists(web_driver,'.product_list'):
             toaster = ToastNotifier()
             toaster.show_toast("5TA", "Cambiaron los productos en existencia")
 
             products = driver.find_elements_by_css_selector("ul.product_list li")
 
             for product in products:
-                if "alimento" in product.find_element_by_css_selector('div div a.product-name').text.lower():
-                    add_to_cart(web_driver,product)
-                    return
+                if "alimento" in product.find_element_by_css_selector('div div a.product-name').text.lower() or "aseo" in product.find_element_by_css_selector('div div a.product-name').text.lower():
+                    print(product.find_element_by_css_selector('div div a.product-name').text.lower())
+                    # print(product.find_element_by_css_selector("a[title='Comprar']").get_attribute('title'))
 
-        wait_period = random.randint(8, 11)
+                    print(product.find_element_by_css_selector("a[title='Comprar']").get_attribute('href'))
+
+                    add_to_cart(web_driver,product)
+                    return True
+
+        wait_period = random.randint(5, 8)
         print(f'\n\n---Esperando {wait_period} segundos----')
         time.sleep(wait_period)
 
@@ -146,10 +148,10 @@ def hunt_products(web_driver):
             break
 
 
-def element_exists(web_driver,element_class):
+def element_exists(web_driver,element_selector):
 
     try:
-        if web_driver.find_element_by_class_name(element_class):
+        if web_driver.find_element_by_css_selector(element_selector):
             return True
 
     except Exception:
@@ -170,6 +172,8 @@ driver = webdriver.Chrome(executable_path='D:\\Installers\\Dev\\chromedriver_win
 driver.set_window_size(1366,768)
 
 login(driver,credentials)
-hunt_products(driver)
-pay(driver,credentials)
+
+if hunt_products(driver):
+    pay(driver,credentials)
+
 print("Done")
