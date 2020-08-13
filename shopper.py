@@ -64,20 +64,35 @@ def pay(client,credentials):
         print('No hay ningun producto en el carrito')
         raise e
 
+    wait_for_ez = WebDriverWait(driver, 1.5)
+    counter = 0
 
-    try:
-        wait.until(lambda client: client.find_element_by_css_selector('p.payment_module a'))
-        client.find_element_by_css_selector('p.payment_module a').click()
+    while True:
+        if counter > 30:
+            print('No se pudo comprar, nunca dejo pagar')
+            raise Exception # change this
 
-    except NoSuchElementException as e:
-        print('Hubo un error al iniciar el pago, no aparecio el boton')
-        raise e
+        try:
+            wait_for_ez.until(lambda client: client.find_element_by_css_selector('p.payment_module a'))
+            client.find_element_by_css_selector('p.payment_module a').click()
+            break
+
+        except TimeoutException as e:
+            print('Hubo un error al iniciar el pago, no aparecio el boton')
+            client.find_element_by_css_selector('#cgv').click()
+            client.find_element_by_css_selector('#cgv').click()
+            counter += 1
+            continue
 
     # dentro de enzona
 
-    wait.until(lambda client: client.find_element_by_class_name('btn-lg'))
-    client.find_element_by_class_name('btn-lg').click()
+    try:
+        wait.until(lambda client: client.find_element_by_class_name('btn-lg'))
+        client.find_element_by_class_name('btn-lg').click()
 
+    except TimeoutException as e:
+        print("No se pudo entrar a enzona")
+        raise e
 
     wait.until(lambda client: client.find_element_by_class_name('pincode-input-container'))
     pin_modules = client.find_elements_by_css_selector('div.pincode-input-container input.pincode-input-text')
@@ -89,7 +104,13 @@ def pay(client,credentials):
         pin_modules[i].send_keys(credentials['pin'][i])
         i += 1
 
-    client.find_element_by_class_name('btn-lg').click()
+    buy = input("Desea comprar el producto? Presione 'y' para comprarlo, otra tecla para cancelar la compra\n")
+
+    if buy == 'y':
+
+        client.find_element_by_class_name('btn-lg').click()
+    else:
+        print("Usted eligio no comprar el producto")
 
 
 def add_to_cart(web_driver,product):
@@ -97,7 +118,7 @@ def add_to_cart(web_driver,product):
     try:
         product_buy_button = product.find_element_by_css_selector("a[title='Comprar']").click()
 
-        wait = WebDriverWait(driver, 10, poll_frequency=1,
+        wait = WebDriverWait(driver, 10, poll_frequency=0.5,
                              ignored_exceptions=[NoSuchElementException, ElementNotSelectableException])
 
         wait.until(lambda client: web_driver.find_element_by_css_selector('#layer_cart_product_quantity').text == '1')
@@ -138,13 +159,14 @@ def hunt_products(web_driver):
                     add_to_cart(web_driver,product)
                     return True
 
-        wait_period = random.randint(5, 8)
+        wait_period = random.randint(4, 6)
         print(f'\n\n---Esperando {wait_period} segundos----')
         time.sleep(wait_period)
 
         try:
             driver.get('https://5tay42.enzona.net/nuevos-productos')
         except TimeoutException:
+            print('Hubo algun problema cargando la pagina')
             break
 
 
